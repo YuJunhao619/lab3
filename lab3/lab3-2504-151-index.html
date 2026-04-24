@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图书商城 | 登录注册功能（本地存储）</title>
+    <link rel="stylesheet" href="lab3-2504-151-index.css">
+    <style>
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 2000;
+            display: none;  /* 默认隐藏 */
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(3px);
+        }
+        
+        .login-dialog {
+            position: relative;
+            width: 420px;
+            max-width: 90%;
+            background: #fff;
+            border-radius: 32px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            overflow: hidden;
+            animation: fadeInUp 0.3s ease;
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .dialog-header {
+            background: #2c3e4e;
+            color: white;
+            padding: 20px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .dialog-header h3 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        
+        .close-dialog {
+            font-size: 28px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+        
+        .close-dialog:hover {
+            background: rgba(255,255,255,0.2);
+            transform: rotate(90deg);
+        }
+        
+        .tab-buttons {
+            display: flex;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f8fafc;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            text-align: center;
+            padding: 14px 0;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            background: transparent;
+            border: none;
+            font-size: 1rem;
+            color: #4a5568;
+        }
+        
+        .tab-btn.active {
+            color: #e67e22;
+            border-bottom: 3px solid #e67e22;
+            background: white;
+        }
+        
+        .form-container {
+            padding: 30px 28px 35px;
+        }
+        
+        .form-pane {
+            display: none;
+        }
+        
+        .form-pane.active-pane {
+            display: block;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #2d3748;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #cbd5e1;
+            border-radius: 28px;
+            font-size: 0.95rem;
+            transition: 0.2s;
+            outline: none;
+        }
+        
+        .input-group input:focus {
+            border-color: #e67e22;
+            box-shadow: 0 0 0 3px rgba(230,126,34,0.1);
+        }
+        
+        .error-msg {
+            color: #e53e3e;
+            font-size: 0.75rem;
+            margin-top: 5px;
+            display: block;
+        }
+        
+        .submit-btn {
+            width: 100%;
+            background: #e67e22;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 40px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-top: 10px;
+        }       
+        .submit-btn:hover {
+            background: #d35400;
+            transform: translateY(-2px);
+        }       
+        .info-tip {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 0.75rem;
+            color: #718096;
+        }
+        .user-info-bar {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: #fff3e0;
+            padding: 6px 18px;
+            border-radius: 50px;
+            margin-left: 15px;
+        }        
+        .user-welcome {
+            font-weight: 500;
+            color: #2c3e4e;
+        }       
+        .logout-btn {
+            background: #e67e22;
+            border: none;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: 0.2s;
+        }       
+        .logout-btn:hover {
+            background: #c0392b;
+        }
+        .login-status-fab {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            background: #2c3e4e;
+            border-radius: 50px;
+            padding: 8px 18px;
+            color: white;
+            cursor: pointer;
+            z-index: 1000;
+            font-size: 0.85rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            transition: 0.2s;
+        }       
+        .login-status-fab:hover {
+            background: #e67e22;
+            transform: scale(1.02);
+        }
+        .hidden {
+            display: none;
+        }
+        @media (max-width: 680px) {
+            .login-dialog { width: 90%; }
+            .user-info-bar { display: none; } /* 手机可隐藏，不影响功能 */
+        }
+    </style>
+</head>
+<body>
+<div class="page-wrapper">
+    <header class="header-fixed">
+        <div class="header-container">
+            <div class="logo-area">
+                <h1>📚 与君书店</h1>
+                <p class="logo-tag">阅见世界 · 心享自由</p>
+            </div>
+            <nav class="nav-menu">
+                <ul>
+                    <li><a href="#" class="nav-link">首页</a></li>
+                    <li><a href="#" class="nav-link">图书商城</a></li>
+                    <li><a href="#" class="nav-link">新书推荐</a></li>
+                    <li><a href="#" class="nav-link">畅销榜</a></li>
+                    <li><a href="#" class="nav-link">会员中心</a></li>
+                </ul>
+            </nav>
+            <div id="authSection" class="auth-section">
+                <div class="login-trigger" id="loginTriggerBtn" style="cursor: pointer; background: #e67e22; padding: 8px 18px; border-radius: 40px; font-weight: bold; transition: 0.2s;">
+                    登录 / 注册
+                </div>
+                <div id="userInfoArea" class="user-info-bar" style="display: none;"></div>
+            </div>
+            <div class="search-icon" style="cursor: pointer;">🔍</div>
+        </div>
+    </header>
+    <div class="header-placeholder"></div>
+    <div class="main-container clearfix">
+        <aside class="left-sidebar">
+            <div class="category-box" style="position: relative;">
+                <h3 class="category-title">📖 图书分类</h3>
+                <ul class="category-list">
+                    <li><a href="#">文学小说</a></li>
+                    <li><a href="#">经济管理</a></li>
+                    <li><a href="#">历史传记</a></li>
+                    <li><a href="#">科学技术</a></li>
+                    <li><a href="#">少儿读物</a></li>
+                </ul>
+                <div class="relative-deco" style="position: relative; top: 10px;">✦ 精选分类 ✦</div>
+            </div>
+        </aside>
+        <main class="main-content">
+            <div class="featured-books">
+                <h2 class="section-title">🔥 精选图书 · 悬停有惊喜</h2>
+                <div class="book-showcase">
+                    <div class="book-card book-special" style="position: relative;">
+                        <img src="https://picsum.photos/id/20/200/260" alt="Book Cover" class="book-img">
+                        <h4>《追风筝的人》</h4>
+                        <p class="author">卡勒德·胡赛尼</p>
+                        <span class="price">¥49.8</span>
+                        <div class="hover-desc" style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.8); color:#fff; text-align:center; border-radius:0 0 12px 12px; opacity:0; visibility:hidden; transition:0.3s;">🌟 为你，千千万万遍 🌟</div>
+                    </div>
+                    <div class="book-card"><img src="https://picsum.photos/id/26/200/260" alt="Book"><h4>《百年孤独》</h4><p class="author">马尔克斯</p><span class="price">¥68.0</span></div>
+                    <div class="book-card"><img src="https://picsum.photos/id/28/200/260" alt="Book"><h4>《人类简史》</h4><p class="author">赫拉利</p><span class="price">¥99.9</span></div>
+                    <div class="book-card"><img src="https://picsum.photos/id/29/200/260" alt="Book"><h4>《原则》</h4><p class="author">达利欧</p><span class="price">¥88.0</span></div>
+                </div>
+            </div>
+            <div class="hot-recommend">
+                <h2 class="section-title">⭐ 热门推荐</h2>
+                <div class="float-books clearfix">
+                    <div class="float-book-item"><img src="https://picsum.photos/id/0/120/160"><p>《三体全集》</p><span>¥128</span></div>
+                    <div class="float-book-item"><img src="https://picsum.photos/id/1/120/160"><p>《活着》</p><span>¥45</span></div>
+                    <div class="float-book-item"><img src="https://picsum.photos/id/10/120/160"><p>《解忧杂货店》</p><span>¥52</span></div>
+                    <div class="float-book-item"><img src="https://picsum.photos/id/12/120/160"><p>《白夜行》</p><span>¥69</span></div>
+                </div>
+            </div>
+            <div class="new-books-table">
+                <h2 class="section-title">✨ 新书上市 · Table布局</h2>
+                <table class="books-table">
+                    <thead><tr><th>书名</th><th>作者</th><th>出版社</th><th>定价</th></tr></thead>
+                    <tbody>
+                        <tr><td>《深度学习革命》</td><td>凯德·梅茨</td><td>中信出版社</td><td>¥79</td></tr>
+                        <tr><td>《埃隆·马斯克传》</td><td>沃尔特</td><td>中信出版社</td><td>¥99</td></tr>
+                        <tr><td>《时空画师》</td><td>海漄</td><td>重庆出版社</td><td>¥58</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+        <aside class="right-sidebar">
+            <div class="promo-fixed">
+                <h3>🎁 限时促销</h3>
+                <ul><li>满199减30</li><li>满399减80</li><li>会员专享折上折</li></ul>
+                <div class="coupon-code">优惠码: ludong666</div>
+            </div>
+            <div class="contact-fixed">📞 客服专线 400-882-6688</div>
+        </aside>
+    </div>
+    <footer class="footer"><p>&copy; 2026 与君书店 | </p></footer>
+</div>
+<div id="loginOverlay" class="login-overlay">
+    <div class="login-dialog">
+        <div class="dialog-header">
+            <h3>欢迎来到与君书店</h3>
+            <span class="close-dialog" id="closeDialogBtn">&times;</span>
+        </div>
+        <div class="tab-buttons">
+            <button class="tab-btn active" data-tab="login">登录</button>
+            <button class="tab-btn" data-tab="register">注册</button>
+        </div>
+        <div class="form-container">
+            <!-- 登录表单 -->
+            <div id="loginPane" class="form-pane active-pane">
+                <form id="loginForm">
+                    <div class="input-group">
+                        <label>用户名</label>
+                        <input type="text" id="loginUsername" placeholder="请输入用户名" autocomplete="off">
+                        <span class="error-msg" id="loginNameError"></span>
+                    </div>
+                    <div class="input-group">
+                        <label>密码</label>
+                        <input type="password" id="loginPassword" placeholder="请输入密码">
+                        <span class="error-msg" id="loginPwdError"></span>
+                    </div>
+                    <button type="submit" class="submit-btn">登 录</button>
+                    <div class="info-tip">还没有账号？点击上方“注册”即可免费注册</div>
+                </form>
+            </div>
+            <div id="registerPane" class="form-pane">
+                <form id="registerForm">
+                    <div class="input-group">
+                        <label>用户名（必填）</label>
+                        <input type="text" id="regUsername" placeholder="字母数字组合，至少3位">
+                        <span class="error-msg" id="regNameError"></span>
+                    </div>
+                    <div class="input-group">
+                        <label>密码（必填）</label>
+                        <input type="password" id="regPassword" placeholder="至少6位">
+                        <span class="error-msg" id="regPwdError"></span>
+                    </div>
+                    <div class="input-group">
+                        <label>确认密码</label>
+                        <input type="password" id="regConfirmPwd" placeholder="再次输入密码">
+                        <span class="error-msg" id="regConfirmError"></span>
+                    </div>
+                    <button type="submit" class="submit-btn">注 册</button>
+                    <div class="info-tip">注册后信息将保存在浏览器本地存储中</div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="fabLoginBtn" class="login-status-fab" style="display: flex; align-items: center; gap: 6px;">
+    🔐 未登录
+</div>
+<script>
+    const STORAGE_KEY = "bookstore_users";
+    function getUsers() {
+        let users = localStorage.getItem(STORAGE_KEY);
+        if (users) {
+            return JSON.parse(users);
+        }
+        return [];  
+    }
+    function saveUsers(users) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+    }
+    function registerUser(username, password) {
+        let users = getUsers();
+        const exist = users.some(user => user.username.toLowerCase() === username.toLowerCase());
+        if (exist) {
+            return { success: false, message: "用户名已存在，请更换" };
+        }
+        users.push({ username: username, password: password });
+        saveUsers(users);
+        return { success: true, message: "注册成功！请登录" };
+    }
+    function loginUser(username, password) {
+        let users = getUsers();
+        const found = users.find(user => user.username === username && user.password === password);
+        if (found) {
+            sessionStorage.setItem("currentUser", JSON.stringify({ username: found.username }));
+            return { success: true, message: "登录成功" };
+        } else {
+            const nameExist = users.some(user => user.username === username);
+            if (nameExist) {
+                return { success: false, message: "密码错误" };
+            } else {
+                return { success: false, message: "用户名不存在，请先注册" };
+            }
+        }
+    }
+    function getCurrentUser() {
+        const userStr = sessionStorage.getItem("currentUser");
+        if (userStr) {
+            return JSON.parse(userStr);
+        }
+        return null;
+    }
+    function logout() {
+        sessionStorage.removeItem("currentUser");
+        updateUIForLoginStatus();
+        showToast("已安全退出登录");
+    }
+    function updateUIForLoginStatus() {
+        const currentUser = getCurrentUser();
+        const loginTriggerDiv = document.getElementById("loginTriggerBtn");
+        const userInfoArea = document.getElementById("userInfoArea");
+        const fabBtn = document.getElementById("fabLoginBtn");       
+        if (currentUser) {
+            loginTriggerDiv.style.display = "none";
+            userInfoArea.style.display = "flex";
+            userInfoArea.innerHTML = `<span class="user-welcome">👋 欢迎，${currentUser.username}</span>
+                                      <button id="logoutHeaderBtn" class="logout-btn">退出</button>`;
+            if (fabBtn) fabBtn.innerHTML = `👤 ${currentUser.username} | 已登录`;
+            const logoutBtn = document.getElementById("logoutHeaderBtn");
+            if (logoutBtn) {
+                logoutBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    logout();
+                });
+            }
+        } else {
+            loginTriggerDiv.style.display = "block";
+            userInfoArea.style.display = "none";
+            userInfoArea.innerHTML = "";
+            if (fabBtn) fabBtn.innerHTML = "🔐 未登录，点击登录";
+        }
+    }
+    function showToast(msg, isError = false) {
+        let toast = document.getElementById("dynamicToast");
+        if (!toast) {
+            toast = document.createElement("div");
+            toast.id = "dynamicToast";
+            toast.style.position = "fixed";
+            toast.style.bottom = "80px";
+            toast.style.left = "50%";
+            toast.style.transform = "translateX(-50%)";
+            toast.style.backgroundColor = "#2c3e4e";
+            toast.style.color = "white";
+            toast.style.padding = "12px 24px";
+            toast.style.borderRadius = "40px";
+            toast.style.zIndex = "3000";
+            toast.style.fontWeight = "bold";
+            toast.style.boxShadow = "0 4px 12px rgba(0,0,0,0.3)";
+            toast.style.transition = "opacity 0.3s";
+            toast.style.opacity = "0";
+            document.body.appendChild(toast);
+        }
+        toast.textContent = msg;
+        if (isError) toast.style.backgroundColor = "#c0392b";
+        else toast.style.backgroundColor = "#2c3e4e";
+        toast.style.opacity = "1";
+        setTimeout(() => {
+            toast.style.opacity = "0";
+        }, 2500);
+    }
+    function showLoginDialog() {
+        const overlay = document.getElementById("loginOverlay");
+        overlay.style.display = "flex";
+        document.getElementById("loginForm").reset();
+        document.getElementById("registerForm").reset();
+        document.querySelectorAll(".error-msg").forEach(el => el.innerText = "");
+        document.getElementById("loginPane").classList.add("active-pane");
+        document.getElementById("registerPane").classList.remove("active-pane");
+        const btns = document.querySelectorAll(".tab-btn");
+        btns.forEach(btn => btn.classList.remove("active"));
+        document.querySelector(".tab-btn[data-tab='login']").classList.add("active");
+    }   
+    function hideLoginDialog() {
+        const overlay = document.getElementById("loginOverlay");
+        overlay.style.display = "none";
+    }
+    function handleRegister(e) {
+        e.preventDefault();
+        const username = document.getElementById("regUsername").value.trim();
+        const password = document.getElementById("regPassword").value.trim();
+        const confirmPwd = document.getElementById("regConfirmPwd").value.trim();
+        let isValid = true;
+        document.getElementById("regNameError").innerText = "";
+        document.getElementById("regPwdError").innerText = "";
+        document.getElementById("regConfirmError").innerText = "";      
+        if (username.length < 3 || !/^[a-zA-Z0-9\u4e00-\u9fa5]+$/.test(username)) {
+            document.getElementById("regNameError").innerText = "用户名至少3位，只能包含字母数字或中文";
+            isValid = false;
+        }
+        if (password.length < 6) {
+            document.getElementById("regPwdError").innerText = "密码长度至少6位";
+            isValid = false;
+        }
+        if (password !== confirmPwd) {
+            document.getElementById("regConfirmError").innerText = "两次输入的密码不一致";
+            isValid = false;
+        }
+        if (!isValid) return;      
+        const result = registerUser(username, password);
+        if (result.success) {
+            showToast(result.message);
+            document.querySelector(".tab-btn[data-tab='login']").click();
+            document.getElementById("loginUsername").value = username;
+            document.getElementById("loginPassword").value = "";
+        } else {
+            document.getElementById("regNameError").innerText = result.message;
+        }
+    }
+    function handleLogin(e) {
+        e.preventDefault();
+        const username = document.getElementById("loginUsername").value.trim();
+        const password = document.getElementById("loginPassword").value.trim();
+        document.getElementById("loginNameError").innerText = "";
+        document.getElementById("loginPwdError").innerText = "";
+        if (!username) {
+            document.getElementById("loginNameError").innerText = "请输入用户名";
+            return;
+        }
+        if (!password) {
+            document.getElementById("loginPwdError").innerText = "请输入密码";
+            return;
+        }
+        const result = loginUser(username, password);
+        if (result.success) {
+            showToast("登录成功！欢迎回来");
+            hideLoginDialog();
+            updateUIForLoginStatus();
+        } else {
+            document.getElementById("loginPwdError").innerText = result.message;
+        }
+    }
+    function initAuth() {
+        updateUIForLoginStatus();
+        const loginTrigger = document.getElementById("loginTriggerBtn");
+        const fabBtn = document.getElementById("fabLoginBtn");
+        if (loginTrigger) loginTrigger.addEventListener("click", showLoginDialog);
+        if (fabBtn) fabBtn.addEventListener("click", showLoginDialog);
+        const closeBtn = document.getElementById("closeDialogBtn");
+        const overlay = document.getElementById("loginOverlay");
+        closeBtn.addEventListener("click", hideLoginDialog);
+        overlay.addEventListener("click", (e) => {
+            if (e.target === overlay) hideLoginDialog();
+        });
+        const tabBtns = document.querySelectorAll(".tab-btn");
+        const loginPane = document.getElementById("loginPane");
+        const registerPane = document.getElementById("registerPane");
+        tabBtns.forEach(btn => {
+            btn.addEventListener("click", () => {
+                const tab = btn.getAttribute("data-tab");
+                tabBtns.forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                if (tab === "login") {
+                    loginPane.classList.add("active-pane");
+                    registerPane.classList.remove("active-pane");
+                } else {
+                    registerPane.classList.add("active-pane");
+                    loginPane.classList.remove("active-pane");
+                }
+                document.querySelectorAll(".error-msg").forEach(el => el.innerText = "");
+            });
+        });
+        document.getElementById("loginForm").addEventListener("submit", handleLogin);
+        document.getElementById("registerForm").addEventListener("submit", handleRegister);
+    }
+    initAuth();
+</script>
+</body>
+</html>
